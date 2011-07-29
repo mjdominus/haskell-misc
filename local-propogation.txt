@@ -1,0 +1,244 @@
+-- Local Propagation Network
+
+module LPN where 
+
+import List
+import Data.Maybe
+import Control.Monad.State
+import Debug.Trace
+
+
+{-- Types --}
+
+type WireName = String
+type Value = Double
+type WireValue = Maybe Double
+type NodeName = String
+type Settor = Maybe NodeName
+type Connection = (WireName, NodeName)
+
+data Wire = Wire { wname :: WireName, wvalue :: WireValue, wsettor :: Settor }
+            deriving (Show)
+
+data Node = Constant   { nname :: NodeName, nwire :: WireName } |
+            IO         { nname :: NodeName, nwire :: WireName } |
+            Adder      { nname :: NodeName, naddend1 :: WireName, naddend2 :: WireName, nsum :: WireName } |
+            Multiplier { nname :: NodeName, nfactor1 :: WireName, nfactor2 :: WireName, nproduct :: WireName }
+            deriving (Show)
+
+data Network = Network { nodes :: [Node], wires :: [Wire], conns :: [Connection], msgs :: [String] }
+             deriving (Show)
+
+type LPN a = State Network a
+
+
+{-- Wire API --}
+
+wireMake :: WireName -> Wire
+wireMake name = Wire name Nothing Nothing
+
+wireName :: Wire -> WireName
+wireName = wname
+
+wireSettor :: Wire -> Settor
+wireSettor = wsettor
+
+wireHasSettor :: Wire -> Bool
+wireHasSettor = isJust . wsettor
+
+wireSettorIs :: Wire -> NodeName -> Bool
+wireSettorIs wire settor | wireHasSettor wire = fromJust (wireSettor wire) == settor
+wireSettorIs _ _         | otherwise          = False
+
+wireHasValue :: Wire -> NodeName -> Bool
+wireHasValue wire querent | wireHasSettor wire = fromJust (wireSettor wire) /= querent 
+wireHasValue _ _          | otherwise          = False
+
+wireValue :: Wire -> NodeName -> WireValue
+wireValue wire querent | wireHasValue wire querent  = wvalue wire 
+wireValue _    _       | otherwise                  = Nothing
+
+wireSet :: Wire -> NodeName -> Value -> Wire
+wireSet (Wire name _ _) settor v = Wire name (Just v) (Just settor)
+
+wireRevoke :: Wire -> Wire
+wireRevoke (Wire name _ _) = Wire name Nothing Nothing
+
+
+{-- Node API --}
+
+nodeName :: Node -> NodeName
+nodeName = nname
+
+
+{-- Network API --}
+
+networkMake :: Network
+networkMake = Network [] [] [] []
+
+lookupWire :: WireName -> LPN Wire
+lookupWire name = get >>= return . fromJust . find (\w -> wireName w == name) . wires
+
+
+lookupWireValue :: WireName -> NodeName -> LPN WireValue
+lookupWireValue name querent = lookupWire name >>= (\w -> return . wireValue w $ querent)
+
+
+lookupNode :: NodeName -> LPN Node
+lookupNode name = get >>= return . fromJust . find (\n -> nodeName n == name) . nodes 
+
+
+findConnected :: Wire -> LPN [NodeName]
+findConnected wire = do
+  net <- get
+  let name = wireName wire
+  return (map snd . filter (\(wn,nn) -> wn == name) $ conns net)
+
+
+updateWire :: Wire -> NodeName -> LPN ()
+updateWire wire except = do
+  let name = wireName wire
+  net@(Network ns ws cs ms) <- get
+  let ws' = map (\w -> if wireName w == name then wire else w) ws
+  put $ Network ns ws' cs ms
+  findConnected wire >>= sequence . map notifyNode . filter (/= except)
+  return ()
+
+
+addMessage :: String -> LPN ()
+addMessage msg = do
+  net@(Network ns ws cs ms) <- get
+  put $ Network ns ws cs $ msg:ms
+
+
+addWire :: WireName -> LPN WireName
+addWire name = do
+  Network ns ws cs ms <- get
+  put $ Network ns ((wireMake name) : ws) cs ms
+  return name
+
+
+addConstant :: NodeName -> Value -> WireName -> LPN ()
+addConstant name v wire = do
+  Network ns ws cs ms <- get
+  put $ Network (c:ns) ws ((wire,name):cs) ms
+  setWire wire name v
+    where c = Constant name wire
+
+
+addAdder :: NodeName -> WireName -> WireName -> WireName -> LPN ()
+addAdder name ad1 ad2 sum = do
+  Network ns ws cs ms <- get
+  put $ Network (a:ns) ws ((ad1,name):(ad2,name):(sum,name):cs) ms
+    where a = Adder name ad1 ad2 sum 
+
+adder :: NodeName -> WireName -> WireName -> WireName -> LPN ()
+adder name ad1 ad2 sum = do
+  v1 <- lookupWireValue ad1 name
+  v2 <- lookupWireValue ad2 name
+  vs <- lookupWireValue sum name
+  if isJust v1 && isJust v2 
+    then setWire sum name (fromJust v1 + fromJust v2)
+    else revokeWire sum name
+  if isJust v1 && isJust vs
+    then setWire ad2 name (fromJust vs - fromJust v1)
+    else revokeWire ad2 name
+  if isJust v2 && isJust vs
+    then setWire ad1 name (fromJust vs - fromJust v2)
+    else revokeWire ad1 name
+
+
+addMultiplier :: NodeName -> WireName -> WireName -> WireName -> LPN ()
+addMultiplier name fa1 fa2 pro = do
+  Network ns ws cs ms <- get
+  put $ Network (m:ns) ws ((fa1,name):(fa2,name):(pro,name):cs) ms
+    where m = Multiplier name fa1 fa2 pro 
+
+multiplier :: NodeName -> WireName -> WireName -> WireName -> LPN ()
+multiplier name fa1 fa2 pro = do
+  v1 <- lookupWireValue fa1 name
+  v2 <- lookupWireValue fa2 name
+  vp <- lookupWireValue pro name
+  if isJust v1 && isJust v2 
+    then setWire pro name (fromJust v1 * fromJust v2)
+    else 
+      if isJust v1 && fromJust v1 == 0
+        then setWire pro name 0
+        else
+          if isJust v2 && fromJust v2 == 0
+            then setWire pro name 0
+            else revokeWire pro name
+  if isJust v1 && isJust vp
+    then 
+      if fromJust v1 /= 0
+        then setWire fa2 name (fromJust vp / fromJust v1)
+        else
+          if fromJust vp /= 0
+            then error "Division by zero"
+            else return ()
+    else revokeWire fa2 name
+  if isJust v2 && isJust vp
+    then 
+      if fromJust v2 /= 0
+        then setWire fa1 name (fromJust vp / fromJust v2)
+        else
+          if fromJust vp /= 0
+            then error "Division by zero"
+            else return ()
+    else revokeWire fa1 name
+
+
+addIO :: NodeName -> WireName -> LPN NodeName
+addIO name wire = do
+  Network ns ws cs ms <- get
+  put $ Network (i:ns) ws ((wire,name):cs) ms
+  return name
+    where i = IO name wire
+
+io :: NodeName -> WireName -> LPN ()
+io name wire = do
+    v <- lookupWire wire >>= (\w -> return . wireValue w $ name)
+    let msg = wire ++ ": " ++ 
+               if isJust v 
+                 then show . fromJust $ v
+                 else ": is no longer defined"
+    addMessage msg 
+
+
+setWire :: WireName -> NodeName -> Value -> LPN ()
+setWire wire settor v = do
+  w <- lookupWire wire
+  if (not . wireHasSettor $ w) || (wireSettorIs w settor)
+    then updateWire (wireSet w settor v) settor
+    else 
+      if wireHasSettor $ w 
+        then do
+          let curv = fromJust . wireValue w $ settor
+          if v /= curv
+            then error $ "Wire " ++ wire ++ "has inconsistent value (" ++ show v ++ " != " ++ show curv ++ ")"
+            else return ()
+        else return ()
+
+
+revokeWire :: WireName -> NodeName -> LPN ()
+revokeWire wire revoker = do
+  w <- lookupWire wire
+  if wireSettorIs w revoker
+    then updateWire (wireRevoke w) revoker
+    else return ()
+
+
+notifyNode :: NodeName -> LPN ()
+notifyNode name = do
+  n <- lookupNode name
+  case n of
+    IO name wire              -> io name wire 
+    Adder name ad1 ad2 sum -> adder name ad1 ad2 sum
+    Multiplier name fa1 fa2 pro -> multiplier name fa1 fa2 pro
+
+
+input :: NodeName -> Value -> LPN ()
+input name v = do
+  n <- lookupNode name
+  case n of
+    IO name wire -> setWire wire name v

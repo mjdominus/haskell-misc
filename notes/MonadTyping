@@ -1,0 +1,53 @@
+
+x = do p <- exp
+       let v = something
+       st
+       blurf
+
+
+The entire "do" expression must have type (m t) for some *fixed* monad
+m; however, t is polymorphic.  So we have:
+
+   x   :: m t1
+
+exp is an expression with monad type; p <- exp extracts the underlying
+value and binds it to p:
+
+   exp :: m t2
+   p   :: t2
+
+
+A plain expression "st" is essentially identical to "_ <- st", so:
+
+   st :: m t2
+
+If this plain expression is the last in the do-block, then this is the
+value of the entire do-block.  So here:
+
+   blurf :: m t1
+
+But in particular, if we want to return the value of some non-monadic
+expression, we need "return":
+
+   return p  :: m t2
+
+A "let" expression sets up a temporary binding of any type:
+
+   let v :: t3 = something :: t3
+
+So the translation is:
+
+   do S		      -> S
+   do v <- exp ; SS   -> exp >>= (\v -> do SS)
+   do st       ; SS   -> st  >>= (\_ -> do SS)
+   do let v = x; SS   -> let v = x in (do SS)
+
+For monad comprehensions:
+
+   [ exp | p <- vals, guardexp ]
+
+is equivalent to
+
+   do p <- vals
+      guard guardExp
+      return exp
