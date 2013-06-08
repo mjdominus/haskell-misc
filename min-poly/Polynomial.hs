@@ -23,7 +23,7 @@ poly_mul a (Poly (b:bs)) =
 plift f (Poly p) = Poly $ f p
 plist f (Poly p) = f p
 
-instance (Num a) => (Num (Poly a)) where
+instance (Eq a, Num a) => (Num (Poly a)) where
   (+) = poly_add
   (-) = poly_sub
   (*) = poly_mul
@@ -32,9 +32,10 @@ instance (Num a) => (Num (Poly a)) where
   signum = undefined
 
 -- trim off leading zero terms
+trim :: (Eq a, Num a) => Poly a -> Poly a
 trim (Poly p) = if (last p == 0) then trim $ Poly $ init p else Poly p
 
-degree :: Num a => Poly a -> Int
+degree :: (Eq a, Num a) => Poly a -> Int
 degree = plist length . trim
-leading :: Num a => Poly a -> a
+leading :: (Eq a, Num a) => Poly a -> a
 leading = plist last . trim

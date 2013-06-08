@@ -19,6 +19,7 @@ iReduceTests =
            ]
 
 timeout_time = 10 -- seconds
+timeoutAssertion :: (Eq a) => IO a -> IO ()
 timeoutAssertion asst = do
   r <- System.Timeout.timeout timeout_time
   return ()
