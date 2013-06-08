@@ -18,15 +18,14 @@ iReduceTests =
              TestLabel "4" $ TestCase $ reducesTo irel [3,0,-1]  [4]
            ]
 
-timeout_time = 10 -- seconds
+timeout_time = 2000000 -- microseconds
 timeoutAssertion :: (Eq a) => IO a -> IO ()
 timeoutAssertion asst = do
-  r <- System.Timeout.timeout timeout_time
-  return ()
+  r <- System.Timeout.timeout timeout_time asst
+  assertBool "timed out" (r /= Nothing)
 
 iReduceTests2 =
-    TestList [ TestLabel "1" $ TestCase $ timeoutAssertion $ reducesTo irel [0,2,0,1]   [0,1] ]
---  TestList [ TestLabel "1" $ reducesTo irel [0,2,0,1]   [0,1]
+  TestList [ TestLabel "1" $ TestCase $ timeoutAssertion $ reducesTo irel [0,2,0,1]   [0,1] ]
 
 test1 = TestLabel "test1" $ TestCase (assertEqual "lose" 1 2 )
 test2 = TestCase (assertEqual "win" 1 1 )
