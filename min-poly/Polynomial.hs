@@ -1,11 +1,23 @@
 
 module Polynomial (Poly(Poly), degree, leading,
-                   poly_c, poly_shift) where
+                   poly_c, poly_shift,
+                   showPoly) where
 
-data Poly a = Poly [a] deriving (Show, Eq)
+data Poly a = Poly [a] deriving (Eq, Show)
 
 instance Functor Poly where
   fmap f (Poly a) = Poly (fmap f a)
+
+-- bad, but good enough for now
+showPoly :: (Show a) => [Char] -> Poly a -> [Char]
+showPoly var (Poly cs) = showPoly' 0 var cs
+  where showPoly' n var (c:cs) = showMono' n var c ++
+                                 " + " ++
+                                 showPoly' (n+1) var cs
+        showPoly' _ _ [] = ""
+        showMono' 0 _ c = show c
+        showMono' 1 var c = show c ++ var
+        showMono' n var c = show c ++ var ++ "^" ++ (show n)
 
 -- Multiply a polynomial by c
 poly_c :: Num c => c -> Poly c -> Poly c
