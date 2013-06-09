@@ -15,7 +15,7 @@ import Prelude hiding (sqrt)
 
 data Relator p where {
   Rel :: Poly p -> Relator p
-} deriving (Show)
+} deriving (Show, Eq)
 
 liftrel f (Rel p) = f p
 -- evaluate a polynomial in some constant x for which we know a relator

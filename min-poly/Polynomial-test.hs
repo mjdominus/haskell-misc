@@ -13,12 +13,12 @@ data PolyI a = Im (Poly (Poly a))
 
 instance Show a => Show (PolyI a) where
   show (Im p) = showPoly "x" $ fmap (showPoly "i") p
-  
+
 powers x = iterate ((relmod irel) . (* x)) (Poly [1])
 
-iPowerTests = TestList $ 
+iPowerTests = TestList $
               map TestCase $
-              zipWith (assertEqual "power of i+1") 
+              zipWith (assertEqual "power of i+1")
               (take 5 (powers (Poly [1, 1])))  -- i+1
               [ Poly [1],
                 Poly [1,1],
