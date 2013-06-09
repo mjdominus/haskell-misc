@@ -30,5 +30,5 @@ iReduceTests2 =
 test1 = TestLabel "test1" $ TestCase (assertEqual "lose" 1 2 )
 test2 = TestCase (assertEqual "win" 1 1 )
 
-tests = TestList [ ]
+tests = TestList [ iReduceTests, iReduceTests2 ]
 

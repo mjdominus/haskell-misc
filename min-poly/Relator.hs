@@ -5,7 +5,7 @@ module Relator (Relator(Rel), relmod,
                 Poly(Poly)
                ) where
 
-import Polynomial (Poly(Poly), degree, leading, poly_c)
+import Polynomial (Poly(Poly), degree, leading, poly_c, poly_shift)
 import Prelude hiding (sqrt)
 
 -- ----------------------------------------------------------------
@@ -21,11 +21,13 @@ liftrel f (Rel p) = f p
 -- evaluate a polynomial in some constant x for which we know a relator
 -- or, reduce poloynomial p, mod rel
 relmod rel p =
-  if degree p < liftrel degree rel then p
+  if degree p < degree r then p
   else
     relmod rel p'
-    where f = leading p / liftrel leading rel
-          p' = p - liftrel (poly_c f) rel
+  where Rel r = rel
+        n = degree p - degree r
+        f = leading p / leading r
+        p' = p - (poly_shift n $ poly_c f r)
 
 -- square root of n
 sqrt n = Rel (Poly [-n, 0/1, 1/1])

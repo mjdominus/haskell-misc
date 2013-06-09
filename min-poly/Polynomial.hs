@@ -1,12 +1,20 @@
 
-module Polynomial (Poly(Poly), degree, leading, poly_c) where
+module Polynomial (Poly(Poly), degree, leading,
+                   poly_c, poly_shift) where
 
 data Poly a = Poly [a] deriving (Show, Eq)
 
 instance Functor Poly where
   fmap f (Poly a) = Poly (fmap f a)
 
+-- Multiply a polynomial by c
+poly_c :: Num c => c -> Poly c -> Poly c
 poly_c c        = fmap (* c)
+
+-- Multiply a polynomial by x^d
+-- poly_shift :: (Num a, Num c) => a -> Poly c -> Poly c
+poly_shift :: Num a => Int -> Poly a -> Poly a
+poly_shift d (Poly p)  = Poly $ (replicate d 0) ++ p
 
 longZipWith f a [] = a
 longZipWith f [] b = b
