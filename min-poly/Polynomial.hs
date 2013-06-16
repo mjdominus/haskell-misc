@@ -1,6 +1,6 @@
 
 module Polynomial (Poly(Poly), degree, leading,
-                   poly_c, poly_shift,
+                   poly_shift, scale,
                    showPoly) where
 
 data Poly a = Poly [a] deriving (Eq, Show)
@@ -20,8 +20,8 @@ showPoly var (Poly cs) = showPoly' 0 var cs
         showMono' n var c = show c ++ var ++ "^" ++ (show n)
 
 -- Multiply a polynomial by c
-poly_c :: Num c => c -> Poly c -> Poly c
-poly_c c        = fmap (* c)
+scale :: Num c => c -> Poly c -> Poly c
+scale c        = fmap (* c)
 
 -- Multiply a polynomial by x^d
 -- poly_shift :: (Num a, Num c) => a -> Poly c -> Poly c
@@ -32,12 +32,14 @@ longZipWith f a [] = a
 longZipWith f [] b = b
 longZipWith f (a:as) (b:bs) = (f a b) : longZipWith f as bs
 
+poly_add :: (Eq a, Num a) => Poly a -> Poly a -> Poly a
 poly_add (Poly a) (Poly b) = trim $ Poly $ longZipWith (+) a b
-poly_sub a b = poly_add a (poly_c (-1) b)
+poly_sub :: (Eq a, Num a) => Poly a -> Poly a -> Poly a
+poly_sub a b = poly_add a (scale (-1) b)
 
 poly_mul a (Poly []) = Poly []
 poly_mul a (Poly (b:bs)) =
-  poly_add (poly_c b a) (poly_x (poly_mul a (Poly bs)))
+  poly_add (scale b a) (poly_x (poly_mul a (Poly bs)))
   where poly_x (Poly a) = Poly (0:a)
 
 plift f (Poly p) = Poly $ f p

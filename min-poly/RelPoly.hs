@@ -27,4 +27,4 @@ instance (Fractional a, Eq a, Num a) => (Num (RelPoly a)) where
 
 (RelPoly v1 r1 p1) ***  (RelPoly v2 r2 p2)
      | v1 == v2 && r1 == r2       = canonical $ RelPoly v1 r1 (p1 * p2)
-     | v1 == v2                   = RelPoly v1 r1 (poly_c (RelPoly (v2 ++ "'") r2 p2) p1)
+     | v1 == v2                   = RelPoly v1 r1 (scale (RelPoly (v2 ++ "'") r2 p2) p1)

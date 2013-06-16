@@ -5,7 +5,7 @@ module Relator (Relator(Rel), relmod,
                 Poly(Poly)
                ) where
 
-import Polynomial (Poly(Poly), degree, leading, poly_c, poly_shift)
+import Polynomial (Poly(Poly), degree, leading, scale, poly_shift)
 import Prelude hiding (sqrt)
 
 -- ----------------------------------------------------------------
@@ -27,7 +27,7 @@ relmod rel p =
   where Rel r = rel
         n = degree p - degree r
         f = leading p / leading r
-        p' = p - (poly_shift n $ poly_c f r)
+        p' = p - (poly_shift n $ scale f r)
 
 -- square root of n
 sqrt n = Rel (Poly [-n, 0/1, 1/1])
