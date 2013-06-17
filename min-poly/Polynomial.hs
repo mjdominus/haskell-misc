@@ -1,7 +1,11 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Polynomial (Poly(Poly), degree, leading,
                    poly_shift, scale,
                    showPoly) where
+
+import Scale (Scale, scale)
 
 data Poly a = Poly [a] deriving (Eq, Show)
 
@@ -19,9 +23,10 @@ showPoly var (Poly cs) = showPoly' 0 var cs
         showMono' 1 var c = show c ++ var
         showMono' n var c = show c ++ var ++ "^" ++ (show n)
 
+
 -- Multiply a polynomial by c
-scale :: Num c => c -> Poly c -> Poly c
-scale c        = fmap (* c)
+instance Num a => Scale a (Poly a) where
+  scale c        = fmap (* c)
 
 -- Multiply a polynomial by x^d
 -- poly_shift :: (Num a, Num c) => a -> Poly c -> Poly c
